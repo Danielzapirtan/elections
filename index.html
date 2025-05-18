@@ -87,7 +87,7 @@
   </div>
 
   <footer>
-    Data updates every 5 minutes. Last updated: <span id="footer-update-time">--</span>
+    Data updates every 30 seconds. Last updated: <span id="footer-update-time">--</span>
     <br>
     This is a demonstration application. Data may not reflect actual probabilities.
   </footer>
@@ -173,8 +173,8 @@
     }
     // Initial fetch
     fetchProbabilityData();
-    // Set up periodic refresh every 5 minutes (300,000 milliseconds)
-    setInterval(fetchProbabilityData, 300000);
+    // Set up periodic refresh every 30 seconds (30,000 milliseconds)
+    setInterval(fetchProbabilityData, 30000);
   </script>
 </body>
 
