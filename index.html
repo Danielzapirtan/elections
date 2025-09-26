@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manifold Markets Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 30px;
+        }
+
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .search-btn, .refresh-btn {
+            padding: 12px 24px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .search-btn:hover, .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #555;
+        }
+
+        .filter-select {
+            padding: 8px 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 14px;
+            background: white;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .status.loading {
+            background: linear-gradient(90deg, #e3f2fd, #bbdefb);
+            color: #1976d2;
+        }
+
+        .status.error {
+            background: linear-gradient(90deg, #ffebee, #ffcdd2);
+            color: #d32f2f;
+        }
+
+        .markets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .market-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .market-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.15);
+        }
+
+        .market-question {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            line-height: 1.4;
+        }
+
+        .market-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+
+        .multi-outcomes {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .outcomes-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .outcome-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .outcome-item:last-child {
+            border-bottom: none;
+        }
+
+        .outcome-text {
+            flex: 1;
+            font-size: 13px;
+            color: #2c3e50;
+            margin-right: 10px;
+        }
+
+        .outcome-prob {
+            font-weight: 700;
+            font-size: 14px;
+            padding: 3px 8px;
+            border-radius: 6px;
+            color: white;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.2);
+        }
+
+        .outcome-prob.prob-high { background: linear-gradient(45deg, #4caf50, #66bb6a); }
+        .outcome-prob.prob-medium { background: linear-gradient(45deg, #ff9800, #ffb74d); }
+        .outcome-prob.prob-low { background: linear-gradient(45deg, #f44336, #ef5350); }
+
+        .more-outcomes {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            font-size: 12px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .meta-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .meta-value {
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .probability {
+            font-size: 24px;
+            font-weight: 900;
+            text-align: center;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+        }
+
+        .prob-high { background: linear-gradient(45deg, #4caf50, #66bb6a); }
+        .prob-medium { background: linear-gradient(45deg, #ff9800, #ffb74d); }
+        .prob-low { background: linear-gradient(45deg, #f44336, #ef5350); }
+
+        .market-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background: linear-gradient(45deg, #e3f2fd, #bbdefb);
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .market-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            text-decoration: none;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn {
+            background: linear-gradient(45deg, #2196f3, #42a5f5);
+            color: white;
+        }
+
+        .view-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+        }
+
+        .last-updated {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 20px;
+            font-style: italic;
+        }
+
+        @media (max-width: 768px) {
+            .markets-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Manifold Markets Monitor</h1>
+            <p>Real-time prediction market tracking</p>
+        </div>
+
+        <div class="controls">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="Moldova">
+                <button id="searchBtn" class="search-btn">🔍 Search</button>
+                <button id="refreshBtn" class="refresh-btn">🔄 Refresh</button>
+            </div>
+            
+            <div class="filters">
+                <div class="filter-group">
+                    <label class="filter-label">Sort By:</label>
+                    <select id="sortSelect" class="filter-select">
+                        <option value="score">Most Popular</option>
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="liquidity">Highest Liquidity</option>
+                        <option value="volume">Highest Volume</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label class="filter-label">Limit:</label>
+                    <select id="limitSelect" class="filter-select">
+                        <option value="20">20 markets</option>
+                        <option value="50">50 markets</option>
+                        <option value="100">100 markets</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div id="marketsContainer" class="markets-grid"></div>
+        
+        <div id="lastUpdated" class="last-updated" style="display: none;"></div>
+    </div>
+
+    <script>
+        class ManifoldMonitor {
+            constructor() {
+                this.baseUrl = 'https://api.manifold.markets/v0';
+                this.markets = [];
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.loadMarkets();
+            }
+
+            bindEvents() {
+                document.getElementById('searchBtn').addEventListener('click', () => this.loadMarkets());
+                document.getElementById('refreshBtn').addEventListener('click', () => this.loadMarkets());
+                document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.loadMarkets();
+                });
+                document.getElementById('sortSelect').addEventListener('change', () => this.loadMarkets());
+                document.getElementById('limitSelect').addEventListener('change', () => this.loadMarkets());
+            }
+
+            showStatus(message, type = 'loading') {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = `status ${type}`;
+                status.style.display = 'block';
+            }
+
+            hideStatus() {
+                document.getElementById('status').style.display = 'none';
+            }
+
+            async loadMarkets() {
+                const searchTerm = document.getElementById('searchInput').value.trim();
+                const sort = document.getElementById('sortSelect').value;
+                const limit = document.getElementById('limitSelect').value;
+
+                this.showStatus('🔍 Loading markets...');
+
+                try {
+                    let url;
+                    
+                    if (searchTerm) {
+                        // Use search endpoint for terms
+                        url = `${this.baseUrl}/search-markets?term=${encodeURIComponent(searchTerm)}&limit=${limit}&sort=${sort}`;
+                    } else {
+                        // Use markets endpoint for browsing
+                        url = `${this.baseUrl}/markets?limit=${limit}&sort=${sort}`;
+                    }
+
+                    console.log('Fetching:', url);
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+
+                    const markets = await response.json();
+                    
+                    // For multi-choice markets, fetch detailed data to get answers
+                    this.showStatus('🔍 Loading market details...');
+                    this.markets = await this.enrichMarketsWithDetails(markets);
+                    
+                    this.renderMarkets();
+                    this.hideStatus();
+                    this.updateTimestamp();
+                    
+                } catch (error) {
+                    console.error('Error loading markets:', error);
+                    this.showStatus(`❌ Error: ${error.message}. Trying alternative endpoint...`, 'error');
+                    
+                    // Fallback to simpler endpoint
+                    this.tryFallbackEndpoint();
+                }
+            }
+
+            async enrichMarketsWithDetails(markets) {
+                const enrichedMarkets = [];
+                
+                for (const market of markets) {
+                    if (market.outcomeType === 'MULTIPLE_CHOICE' && !market.answers) {
+                        // Fetch detailed market data to get answers
+                        try {
+                            const detailResponse = await fetch(`${this.baseUrl}/market/${market.id}`);
+                            if (detailResponse.ok) {
+                                const detailedMarket = await detailResponse.json();
+                                enrichedMarkets.push(detailedMarket);
+                            } else {
+                                enrichedMarkets.push(market);
+                            }
+                        } catch (error) {
+                            console.warn(`Failed to fetch details for market ${market.id}:`, error);
+                            enrichedMarkets.push(market);
+                        }
+                    } else {
+                        enrichedMarkets.push(market);
+                    }
+                }
+                
+                return enrichedMarkets;
+            }
+
+            async tryFallbackEndpoint() {
+                try {
+                    const limit = document.getElementById('limitSelect').value;
+                    const url = `${this.baseUrl}/markets?limit=${limit}`;
+                    
+                    console.log('Trying fallback:', url);
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error(`Fallback failed: HTTP ${response.status}`);
+                    }
+
+                    const markets = await response.json();
+                    this.markets = await this.enrichMarketsWithDetails(markets);
+                    this.renderMarkets();
+                    this.hideStatus();
+                    this.updateTimestamp();
+                    
+                } catch (error) {
+                    console.error('Fallback error:', error);
+                    this.showStatus(`❌ Unable to load markets. API may be unavailable.`, 'error');
+                }
+            }
+
+            renderMarkets() {
+                const container = document.getElementById('marketsContainer');
+                
+                if (!this.markets || this.markets.length === 0) {
+                    container.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: rgba(255,255,255,0.8);">
+                            <h3>No markets found</h3>
+                            <p>Try adjusting your search terms or filters</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                container.innerHTML = this.markets.map(market => this.createMarketCard(market)).join('');
+            }
+
+            createMarketCard(market) {
+                const volume = market.volume ? `$${market.volume.toFixed(0)}` : 'N/A';
+                const liquidity = market.liquidity ? `$${market.liquidity.toFixed(0)}` : 'N/A';
+                const createdDate = new Date(market.createdTime).toLocaleDateString();
+                const closeDate = market.closeTime ? new Date(market.closeTime).toLocaleDateString() : 'Open';
+                
+                const tags = market.tags ? market.tags.slice(0, 3).map(tag => 
+                    `<span class="tag">${tag}</span>`
+                ).join('') : '';
+
+                // Handle different market types
+                let probabilitySection = '';
+                
+                if (market.outcomeType === 'BINARY') {
+                    // Binary market - single probability
+                    const probability = market.probability ? (market.probability * 100).toFixed(1) : 'N/A';
+                    const probClass = this.getProbabilityClass(market.probability);
+                    probabilitySection = `
+                        <div class="probability ${probClass}">
+                            ${probability}${probability !== 'N/A' ? '%' : ''}
+                        </div>
+                    `;
+                } else if (market.outcomeType === 'MULTIPLE_CHOICE') {
+                    // Multi-choice market - show top answers
+                    if (market.answers && market.answers.length > 0) {
+                        const topAnswers = market.answers
+                            .filter(answer => answer.probability > 0.01) // Only show answers with >1% chance
+                            .sort((a, b) => b.probability - a.probability)
+                            .slice(0, 5); // Show top 5 answers
+                        
+                        probabilitySection = `
+                            <div class="multi-outcomes">
+                                <div class="outcomes-title">Top Outcomes (${market.answers.length} total):</div>
+                                ${topAnswers.map(answer => `
+                                    <div class="outcome-item">
+                                        <span class="outcome-text">${answer.text}</span>
+                                        <span class="outcome-prob ${this.getProbabilityClass(answer.probability)}">
+                                            ${(answer.probability * 100).toFixed(1)}%
+                                        </span>
+                                    </div>
+                                `).join('')}
+                                ${market.answers.length > 5 ? `
+                                    <div class="more-outcomes">
+                                        +${market.answers.length - 5} more outcomes
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
+                    } else {
+                        // Fallback if no answers available
+                        probabilitySection = `
+                            <div class="probability prob-medium">
+                                Multi-Choice (Loading outcomes...)
+                            </div>
+                        `;
+                    }
+                } else if (market.outcomeType === 'NUMERIC') {
+                    // Numeric market
+                    const value = market.value !== undefined ? market.value.toFixed(2) : 'N/A';
+                    probabilitySection = `
+                        <div class="probability prob-medium">
+                            Current: ${value}
+                        </div>
+                    `;
+                } else {
+                    // Fallback for other types
+                    probabilitySection = `
+                        <div class="probability prob-medium">
+                            ${market.outcomeType || 'Unknown Type'}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="market-card">
+                        <div class="market-question">${market.question}</div>
+                        
+                        ${probabilitySection}
+                        
+                        <div class="market-meta">
+                            <div class="meta-item">
+                                <span class="meta-label">Type:</span>
+                                <span class="meta-value">${this.formatMarketType(market.outcomeType)}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Volume:</span>
+                                <span class="meta-value">${volume}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Liquidity:</span>
+                                <span class="meta-value">${liquidity}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Created:</span>
+                                <span class="meta-value">${createdDate}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Closes:</span>
+                                <span class="meta-value">${closeDate}</span>
+                            </div>
+                            <div class="meta-item">
+                                <span class="meta-label">Traders:</span>
+                                <span class="meta-value">${market.uniqueBettorCount || 'N/A'}</span>
+                            </div>
+                        </div>
+                        
+                        ${tags ? `<div class="market-tags">${tags}</div>` : ''}
+                        
+                        <div class="market-actions">
+                            <a href="${market.url}" target="_blank" class="action-btn view-btn">
+                                View on Manifold
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }
+
+            formatMarketType(outcomeType) {
+                switch(outcomeType) {
+                    case 'BINARY': return 'Yes/No';
+                    case 'MULTIPLE_CHOICE': return 'Multi-Choice';
+                    case 'NUMERIC': return 'Numeric';
+                    case 'FREE_RESPONSE': return 'Free Response';
+                    default: return outcomeType || 'Unknown';
+                }
+            }
+
+            getProbabilityClass(probability) {
+                if (!probability) return 'prob-medium';
+                if (probability >= 0.7) return 'prob-high';
+                if (probability >= 0.3) return 'prob-medium';
+                return 'prob-low';
+            }
+
+            updateTimestamp() {
+                const timestamp = document.getElementById('lastUpdated');
+                timestamp.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+                timestamp.style.display = 'block';
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ManifoldMonitor();
+        });
+    </script>
+</body>
+</html>
